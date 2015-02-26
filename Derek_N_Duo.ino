@@ -80,7 +80,7 @@ uint8_t mpuIntStatus;                  // mpu statusbyte
 uint8_t devStatus;                     // device status    
 uint16_t packetSize;                   // estimated packet size  
 uint16_t fifoCount;                    // fifo buffer size   
-uint8_t fifoBuffer[64];                // fifo buffer 
+uint8_t fifoBuffer[128];                // fifo buffer 
 
 Quaternion q;                          // quaternion for mpu output
 float euler[3] = {0.0f,0.0f,0.0f};     // yaw pitch roll values
@@ -228,7 +228,7 @@ public:
 	int quick_choice()
 	{
  
-                checkturn(A90_DEGREES); //AGGIUNTA PER TEST
+               // checkturn(A90_DEGREES); //AGGIUNTA PER TEST
   
 		int x = scanner.quick_scan(SCANS_NUMBER);
 
@@ -332,6 +332,7 @@ void setup()
     Serial.println(F("Initializing DMP..."));
     devStatus = mpu.dmpInitialize();
 
+<<<<<<< HEAD
     mpu.setXAccelOffset(0);
     mpu.setYAccelOffset(0);
     mpu.setZAccelOffset(0);
@@ -344,13 +345,23 @@ void setup()
     delay(1000);
     calibration();
     delay(1000);
+=======
+    mpu.setXGyroOffset(49);
+    mpu.setYGyroOffset(-40);
+    mpu.setZGyroOffset(19);
+    mpu.setZAccelOffset(1412);
+>>>>>>> origin/master
 
     if (devStatus == 0)
     {
         Serial.println(F("Enabling DMP..."));
         mpu.setDMPEnabled(true);
 
+<<<<<<< HEAD
         Serial.println(F("Enabling interrupt detection (Arduino external interrupt 2)..."));
+=======
+        Serial.println(F("Enabling interrupt detection (Arduino external interrupt 0)..."));
+>>>>>>> origin/master
         attachInterrupt(2, dmpDataReady, RISING);
         mpuIntStatus = mpu.getIntStatus();
 
@@ -390,10 +401,17 @@ void getangle()
       mpu.resetFIFO(); 
     
     }
+<<<<<<< HEAD
     
     else if(mpuIntStatus & 0x02)
       {
     
+=======
+    
+    else if(mpuIntStatus & 0x02)
+      {
+    
+>>>>>>> origin/master
         while (fifoCount < packetSize) fifoCount = mpu.getFIFOCount();
   
         mpu.getFIFOBytes(fifoBuffer, packetSize);
@@ -473,6 +491,7 @@ int checkturn(int angolo)
     rota = 0.0f;
     mpu.resetFIFO();
     delay(2000);
+<<<<<<< HEAD
 }
 
     
@@ -545,4 +564,6 @@ void calibration(){
 
     if (ready==6) break;
   }
+=======
+>>>>>>> origin/master
 }
