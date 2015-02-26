@@ -56,16 +56,24 @@ using namespace Derek;
 #define CENTRAL_RIGHT 32
 
 //Speeds to control the left rotation
-#define LEFT_MOTOR_LEFT_ROTATION_SPEED -120
-#define RIGHT_MOTOR_LEFT_ROTATION_SPEED 120
+#define LEFT_MOTOR_LEFT_ROTATION_SPEED -80
+#define RIGHT_MOTOR_LEFT_ROTATION_SPEED 80
 
 //Speeds to control the right rotation
-#define LEFT_MOTOR_RIGHT_ROTATION_SPEED 120
-#define RIGHT_MOTOR_RIGHT_ROTATION_SPEED -120
+#define LEFT_MOTOR_RIGHT_ROTATION_SPEED 80
+#define RIGHT_MOTOR_RIGHT_ROTATION_SPEED -80
 
 /////////////////////////////////////////////////
 
 MPU6050 mpu;                           // mpu interface object
+
+int buffersize=1000;     //Amount of readings used to average, make it higher to get more precision but sketch will be slower  (default:1000)
+int acel_deadzone=8;     //Acelerometer error allowed, make it lower to get more precision, but sketch may not converge  (default:8)
+int giro_deadzone=1;     //Giro error allowed, make it lower to get more precision, but sketch may not converge  (default:1)
+
+int16_t ax, ay, az,gx, gy, gz;
+int mean_ax,mean_ay,mean_az,mean_gx,mean_gy,mean_gz;
+int ax_offset,ay_offset,az_offset,gx_offset,gy_offset,gz_offset;
 
 bool dmpReady = false;                 // set true if DMP init was successful
 uint8_t mpuIntStatus;                  // mpu statusbyte
@@ -75,10 +83,10 @@ uint16_t fifoCount;                    // fifo buffer size
 uint8_t fifoBuffer[64];                // fifo buffer 
 
 Quaternion q;                          // quaternion for mpu output
-float euler[3] = {0.0f,0.0f,0.0f};       // yaw pitch roll values
+float euler[3] = {0.0f,0.0f,0.0f};     // yaw pitch roll values
 float rota = 0.0f;
 float start = 0.0f;
-//int i = 0;
+                                                                   //int i = 0;
 
 volatile bool mpuInterrupt = false;    //interrupt flag
 
@@ -297,7 +305,6 @@ void setup()
     // join I2C bus (I2Cdev library doesn't do this automatically)
     #if I2CDEV_IMPLEMENTATION == I2CDEV_ARDUINO_WIRE
         Wire.begin();
-        // TWBR = 24; // 400kHz I2C clock (200kHz if CPU is 8MHz)
     #elif I2CDEV_IMPLEMENTATION == I2CDEV_BUILTIN_FASTWIRE
         Fastwire::setup(400, true);
     #endif
@@ -305,73 +312,56 @@ void setup()
     pinMode(10, OUTPUT);
     pinMode(9, OUTPUT);
     pinMode(8, OUTPUT);
-    
     digitalWrite(10,LOW);
     digitalWrite(9,LOW);
     digitalWrite(8,LOW);
 
-    // initialize serial communication
-    // (115200 chosen because it is required for Teapot Demo output, but it's
-    // really up to you depending on your project)
     Serial.begin(9600);
-    while (!Serial); // wait for Leonardo enumeration, others continue immediately
-
-    // initialize device
     Serial.println(F("Initializing I2C devices..."));
     mpu.initialize();
-
-    // verify connection
     Serial.println(F("Testing device connections..."));
-    Serial.println(mpu.testConnection() ? F("MPU6050 connection successful") : F("MPU6050 connection failed"));
     if (mpu.testConnection() == false)
     {
       while(1)
     {
-      Serial.println(F("RIAVVIA ALIMENTAZIONE"));
+    Serial.println(F("RIAVVIA ALIMENTAZIONE"));
     digitalWrite(9,HIGH);
     }
     }
     
-    
-    // load and configure the DMP
     Serial.println(F("Initializing DMP..."));
     devStatus = mpu.dmpInitialize();
 
-    // supply your own gyro offsets here, scaled for min sensitivity
-    mpu.setXGyroOffset(49);
-    mpu.setYGyroOffset(-40);
-    mpu.setZGyroOffset(19);
-    mpu.setZAccelOffset(1412);
+    mpu.setXAccelOffset(0);
+    mpu.setYAccelOffset(0);
+    mpu.setZAccelOffset(0);
+    mpu.setXGyroOffset(0);
+    mpu.setYGyroOffset(0);
+    mpu.setZGyroOffset(0);
+  
+    Serial.println("\nCalibrazione");
+    meansensors();
+    delay(1000);
+    calibration();
+    delay(1000);
 
-    // make sure it worked (returns 0 if so)
     if (devStatus == 0)
     {
-        // turn on the DMP, now that it's ready
         Serial.println(F("Enabling DMP..."));
         mpu.setDMPEnabled(true);
 
-        // enable Arduino interrupt detection
-        Serial.println(F("Enabling interrupt detection (Arduino external interrupt 0)..."));
+        Serial.println(F("Enabling interrupt detection (Arduino external interrupt 2)..."));
         attachInterrupt(2, dmpDataReady, RISING);
         mpuIntStatus = mpu.getIntStatus();
 
-        // set our DMP Ready flag so the main loop() function knows it's okay to use it
         Serial.println(F("DMP ready! Waiting for first interrupt..."));
         dmpReady = true;
-
-        // get expected DMP packet size for later comparison
         packetSize = mpu.dmpGetFIFOPacketSize();
       
     }
     else
-    {
-        // ERROR!
-        // 1 = initial memory load failed
-        // 2 = DMP configuration updates failed
-        // (if it's going to break, usually the code will be 1)
-        Serial.print(F("DMP Initialization failed (code "));
-        Serial.print(devStatus);
-        Serial.println(F(")"));
+    { 
+        Serial.print("DMP Initialization failed");
     }
 }
 
@@ -380,46 +370,41 @@ void loop()
    mybot.run();                     
 }
 
-//////////////////////////////////////
+/////////////////////////////////////////////////////////FUNZIONI DA INCLUDERE NELLA CLASSE DEL GIROSCOPIO
 
 void dmpDataReady() {
     mpuInterrupt = true;
 }
 
-void getangle(){
-   // wait for MPU interrupt or extra packet(s) available
-    while (!mpuInterrupt && fifoCount < packetSize)
-    {}
+void getangle()
+{
+    while (!mpuInterrupt && fifoCount < packetSize)  {}
   
     mpuInterrupt = false;
     mpuIntStatus = mpu.getIntStatus();
     fifoCount = mpu.getFIFOCount();
     
-    if((mpuIntStatus & 0x10) || fifoCount >= 1024){ 
+    if((mpuIntStatus & 0x10) || fifoCount >= 1024)
+    { 
       
       mpu.resetFIFO(); 
     
-    }else if(mpuIntStatus & 0x02){
-    
-      while (fifoCount < packetSize) fifoCount = mpu.getFIFOCount();
-  
-      mpu.getFIFOBytes(fifoBuffer, packetSize);
-      
-      fifoCount -= packetSize;
-    
-      
-            mpu.dmpGetQuaternion(&q, fifoBuffer);
-            mpu.dmpGetEuler(euler, &q);
-            Serial.print("euler\t");
-            Serial.print(euler[0] * 180/M_PI);
-            Serial.print("\t");
-            Serial.print(euler[1] * 180/M_PI);
-            Serial.print("\t");
-            Serial.println(euler[2] * 180/M_PI);
-            
-    
     }
-
+    
+    else if(mpuIntStatus & 0x02)
+      {
+    
+        while (fifoCount < packetSize) fifoCount = mpu.getFIFOCount();
+  
+        mpu.getFIFOBytes(fifoBuffer, packetSize);
+      
+        fifoCount -= packetSize;
+    
+        mpu.dmpGetQuaternion(&q, fifoBuffer);
+        mpu.dmpGetEuler(euler, &q);
+        Serial.print("\nangolo\t");
+        Serial.print(euler[0] * 180/M_PI);
+    }
 }
 
 int checkturn(int angolo)
@@ -435,23 +420,24 @@ int checkturn(int angolo)
       getangle();
       rota = euler [0];
     }
- /*   start = euler[0];
-    for (i=0;i<2;i++)
-    {
-    getangle();
-    rota = euler[0];
-    if (abs(start - rota) < ((angolo) * M_PI/180))
-      {
-        i=0;
-        Serial.print("Errore evitato");
-      }
-    while (abs(start - rota) < ((angolo) * M_PI/180))
-    {
-      getangle();
-      rota = euler [0];
-    }
-    mpu.resetFIFO();
-    } */
+                                                           /*  start = euler[0];
+                                                               for (i=0;i<2;i++)
+                                                               {
+                                                               getangle();
+                                                               rota = euler[0];
+                                                               if (abs(start - rota) < ((angolo) * M_PI/180))
+                                                                 {
+                                                                   i=0;
+                                                                   Serial.print("Errore evitato");
+                                                                 }
+                                                               while (abs(start - rota) < ((angolo) * M_PI/180))
+                                                                 {
+                                                                   getangle();
+                                                                   rota = euler [0];
+                                                                 }
+                                                               mpu.resetFIFO();
+                                                               } 
+                                                           */
     Serial.print("RUOTATO\n");
     digitalWrite(8,LOW);
     reset();
@@ -460,7 +446,6 @@ int checkturn(int angolo)
  
  void reset()
  {
-    
     Serial.println(F("\nRESETTING\n"));
     mpu.initialize();
     if (mpu.testConnection() == false)
@@ -472,12 +457,6 @@ int checkturn(int angolo)
     }
     
     devStatus = mpu.dmpInitialize();
-
-    // supply your own gyro offsets here, scaled for min sensitivity
-    mpu.setXGyroOffset(49);
-    mpu.setYGyroOffset(-40);
-    mpu.setZGyroOffset(19);
-    mpu.setZAccelOffset(1412);
 
     // make sure it worked (returns 0 if so)
     if (devStatus == 0)
@@ -493,5 +472,77 @@ int checkturn(int angolo)
     start = 0.0f;
     rota = 0.0f;
     mpu.resetFIFO();
-    delay(3000);
+    delay(2000);
+}
+
+    
+void meansensors(){
+  long i=0,buff_ax=0,buff_ay=0,buff_az=0,buff_gx=0,buff_gy=0,buff_gz=0;
+
+  while (i<(buffersize+101)){
+    // read raw accel/gyro measurements from device
+    mpu.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
+    
+    if (i>100 && i<=(buffersize+100)){ //First 100 measures are discarded
+      buff_ax=buff_ax+ax;
+      buff_ay=buff_ay+ay;
+      buff_az=buff_az+az;
+      buff_gx=buff_gx+gx;
+      buff_gy=buff_gy+gy;
+      buff_gz=buff_gz+gz;
+    }
+    if (i==(buffersize+100)){
+      mean_ax=buff_ax/buffersize;
+      mean_ay=buff_ay/buffersize;
+      mean_az=buff_az/buffersize;
+      mean_gx=buff_gx/buffersize;
+      mean_gy=buff_gy/buffersize;
+      mean_gz=buff_gz/buffersize;
+    }
+    i++;
+    delay(2); //Needed so we don't get repeated measures
+  }
+}
+
+void calibration(){
+  ax_offset=-mean_ax/8;
+  ay_offset=-mean_ay/8;
+  az_offset=(16384-mean_az)/8;
+
+  gx_offset=-mean_gx/4;
+  gy_offset=-mean_gy/4;
+  gz_offset=-mean_gz/4;
+  while (1){
+    int ready=0;
+    mpu.setXAccelOffset(ax_offset);
+    mpu.setYAccelOffset(ay_offset);
+    mpu.setZAccelOffset(az_offset);
+
+    mpu.setXGyroOffset(gx_offset);
+    mpu.setYGyroOffset(gy_offset);
+    mpu.setZGyroOffset(gz_offset);
+
+    meansensors();
+    Serial.println("...");
+
+    if (abs(mean_ax)<=acel_deadzone) ready++;
+    else ax_offset=ax_offset-mean_ax/acel_deadzone;
+
+    if (abs(mean_ay)<=acel_deadzone) ready++;
+    else ay_offset=ay_offset-mean_ay/acel_deadzone;
+
+    if (abs(16384-mean_az)<=acel_deadzone) ready++;
+    else az_offset=az_offset+(16384-mean_az)/acel_deadzone;
+
+    if (abs(mean_gx)<=giro_deadzone) ready++;
+    else gx_offset=gx_offset-mean_gx/(giro_deadzone+1);
+
+    if (abs(mean_gy)<=giro_deadzone) ready++;
+    else gy_offset=gy_offset-mean_gy/(giro_deadzone+1);
+
+    if (abs(mean_gz)<=giro_deadzone) ready++;
+    else gz_offset=gz_offset-mean_gz/(giro_deadzone+1);
+
+    if (ready==6) break;
+  }
 }
