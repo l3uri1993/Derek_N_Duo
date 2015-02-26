@@ -49,7 +49,7 @@ using namespace Derek;
 #define RIGHT_LOW_MOTOR_SPEED 165
 
 //Times to select the angle rotation
-#define A90_DEGREES 78 ///Time to make a rotation of 90 degrees
+#define A90_DEGREES 82 ///Time to make a rotation of 90 degrees
 #define LEFT 64///Time to make a rotation of 72 degrees
 #define RIGHT 64
 #define CENTRAL_LEFT 32///Time to make a rotation of 36 degrees
@@ -66,14 +66,6 @@ using namespace Derek;
 /////////////////////////////////////////////////
 
 MPU6050 mpu;                           // mpu interface object
-
-int buffersize=1000;     //Amount of readings used to average, make it higher to get more precision but sketch will be slower  (default:1000)
-int acel_deadzone=8;     //Acelerometer error allowed, make it lower to get more precision, but sketch may not converge  (default:8)
-int giro_deadzone=1;     //Giro error allowed, make it lower to get more precision, but sketch may not converge  (default:1)
-
-int16_t ax, ay, az,gx, gy, gz;
-int mean_ax,mean_ay,mean_az,mean_gx,mean_gy,mean_gz;
-int ax_offset,ay_offset,az_offset,gx_offset,gy_offset,gz_offset;
 
 bool dmpReady = false;                 // set true if DMP init was successful
 uint8_t mpuIntStatus;                  // mpu statusbyte
@@ -228,7 +220,7 @@ public:
 	int quick_choice()
 	{
  
-               // checkturn(A90_DEGREES); //AGGIUNTA PER TEST
+               checkturn(A90_DEGREES); //AGGIUNTA PER TEST
   
 		int x = scanner.quick_scan(SCANS_NUMBER);
 
@@ -332,36 +324,19 @@ void setup()
     Serial.println(F("Initializing DMP..."));
     devStatus = mpu.dmpInitialize();
 
-<<<<<<< HEAD
-    mpu.setXAccelOffset(0);
-    mpu.setYAccelOffset(0);
-    mpu.setZAccelOffset(0);
-    mpu.setXGyroOffset(0);
-    mpu.setYGyroOffset(0);
-    mpu.setZGyroOffset(0);
-  
-    Serial.println("\nCalibrazione");
-    meansensors();
-    delay(1000);
-    calibration();
-    delay(1000);
-=======
-    mpu.setXGyroOffset(49);
-    mpu.setYGyroOffset(-40);
-    mpu.setZGyroOffset(19);
-    mpu.setZAccelOffset(1412);
->>>>>>> origin/master
+    mpu.setXGyroOffset(47);
+    mpu.setYGyroOffset(-38);
+    mpu.setZGyroOffset(22);
+    mpu.setXAccelOffset(-1156);
+    mpu.setYAccelOffset(2481);
+    mpu.setZAccelOffset(1391);
 
     if (devStatus == 0)
     {
         Serial.println(F("Enabling DMP..."));
         mpu.setDMPEnabled(true);
 
-<<<<<<< HEAD
         Serial.println(F("Enabling interrupt detection (Arduino external interrupt 2)..."));
-=======
-        Serial.println(F("Enabling interrupt detection (Arduino external interrupt 0)..."));
->>>>>>> origin/master
         attachInterrupt(2, dmpDataReady, RISING);
         mpuIntStatus = mpu.getIntStatus();
 
@@ -381,7 +356,7 @@ void loop()
    mybot.run();                     
 }
 
-/////////////////////////////////////////////////////////FUNZIONI DA INCLUDERE NELLA CLASSE DEL GIROSCOPIO
+//////////////////////////////////////
 
 void dmpDataReady() {
     mpuInterrupt = true;
@@ -401,17 +376,10 @@ void getangle()
       mpu.resetFIFO(); 
     
     }
-<<<<<<< HEAD
     
     else if(mpuIntStatus & 0x02)
       {
     
-=======
-    
-    else if(mpuIntStatus & 0x02)
-      {
-    
->>>>>>> origin/master
         while (fifoCount < packetSize) fifoCount = mpu.getFIFOCount();
   
         mpu.getFIFOBytes(fifoBuffer, packetSize);
@@ -465,6 +433,7 @@ int checkturn(int angolo)
  void reset()
  {
     Serial.println(F("\nRESETTING\n"));
+    delay(2000);
     mpu.initialize();
     if (mpu.testConnection() == false)
     {
@@ -475,6 +444,12 @@ int checkturn(int angolo)
     }
     
     devStatus = mpu.dmpInitialize();
+
+    // supply your own gyro offsets here, scaled for min sensitivity
+    mpu.setXGyroOffset(49);
+    mpu.setYGyroOffset(-40);
+    mpu.setZGyroOffset(19);
+    mpu.setZAccelOffset(1412);
 
     // make sure it worked (returns 0 if so)
     if (devStatus == 0)
@@ -491,79 +466,4 @@ int checkturn(int angolo)
     rota = 0.0f;
     mpu.resetFIFO();
     delay(2000);
-<<<<<<< HEAD
-}
-
-    
-void meansensors(){
-  long i=0,buff_ax=0,buff_ay=0,buff_az=0,buff_gx=0,buff_gy=0,buff_gz=0;
-
-  while (i<(buffersize+101)){
-    // read raw accel/gyro measurements from device
-    mpu.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
-    
-    if (i>100 && i<=(buffersize+100)){ //First 100 measures are discarded
-      buff_ax=buff_ax+ax;
-      buff_ay=buff_ay+ay;
-      buff_az=buff_az+az;
-      buff_gx=buff_gx+gx;
-      buff_gy=buff_gy+gy;
-      buff_gz=buff_gz+gz;
-    }
-    if (i==(buffersize+100)){
-      mean_ax=buff_ax/buffersize;
-      mean_ay=buff_ay/buffersize;
-      mean_az=buff_az/buffersize;
-      mean_gx=buff_gx/buffersize;
-      mean_gy=buff_gy/buffersize;
-      mean_gz=buff_gz/buffersize;
-    }
-    i++;
-    delay(2); //Needed so we don't get repeated measures
-  }
-}
-
-void calibration(){
-  ax_offset=-mean_ax/8;
-  ay_offset=-mean_ay/8;
-  az_offset=(16384-mean_az)/8;
-
-  gx_offset=-mean_gx/4;
-  gy_offset=-mean_gy/4;
-  gz_offset=-mean_gz/4;
-  while (1){
-    int ready=0;
-    mpu.setXAccelOffset(ax_offset);
-    mpu.setYAccelOffset(ay_offset);
-    mpu.setZAccelOffset(az_offset);
-
-    mpu.setXGyroOffset(gx_offset);
-    mpu.setYGyroOffset(gy_offset);
-    mpu.setZGyroOffset(gz_offset);
-
-    meansensors();
-    Serial.println("...");
-
-    if (abs(mean_ax)<=acel_deadzone) ready++;
-    else ax_offset=ax_offset-mean_ax/acel_deadzone;
-
-    if (abs(mean_ay)<=acel_deadzone) ready++;
-    else ay_offset=ay_offset-mean_ay/acel_deadzone;
-
-    if (abs(16384-mean_az)<=acel_deadzone) ready++;
-    else az_offset=az_offset+(16384-mean_az)/acel_deadzone;
-
-    if (abs(mean_gx)<=giro_deadzone) ready++;
-    else gx_offset=gx_offset-mean_gx/(giro_deadzone+1);
-
-    if (abs(mean_gy)<=giro_deadzone) ready++;
-    else gy_offset=gy_offset-mean_gy/(giro_deadzone+1);
-
-    if (abs(mean_gz)<=giro_deadzone) ready++;
-    else gz_offset=gz_offset-mean_gz/(giro_deadzone+1);
-
-    if (ready==6) break;
-  }
-=======
->>>>>>> origin/master
 }
