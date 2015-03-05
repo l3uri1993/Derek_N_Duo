@@ -220,7 +220,7 @@ public:
 	int quick_choice()
 	{
  
-               checkturn(A90_DEGREES); //AGGIUNTA PER TEST
+               checkturn(LEFT); //AGGIUNTA PER TEST
   
 		int x = scanner.quick_scan(SCANS_NUMBER);
 
