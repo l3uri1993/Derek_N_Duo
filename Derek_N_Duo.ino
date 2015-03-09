@@ -43,25 +43,25 @@ using namespace Derek;
 #define CLOSE 70
 
 //Motors Speeds for the quick scan
-#define LEFT_HIGH_MOTOR_SPEED 210
-#define RIGHT_HIGH_MOTOR_SPEED 215
+#define LEFT_HIGH_MOTOR_SPEED 175
+#define RIGHT_HIGH_MOTOR_SPEED 180
 #define LEFT_LOW_MOTOR_SPEED 150
 #define RIGHT_LOW_MOTOR_SPEED 165
 
 //Times to select the angle rotation
-#define A90_DEGREES 82 ///Time to make a rotation of 90 degrees
-#define LEFT 64///Time to make a rotation of 72 degrees
-#define RIGHT 64
-#define CENTRAL_LEFT 32///Time to make a rotation of 36 degrees
-#define CENTRAL_RIGHT 32
+#define A90_DEGREES 88 ///Time to make a rotation of 90 degrees
+#define LEFT 70///Time to make a rotation of 72 degrees
+#define RIGHT 70
+#define CENTRAL_LEFT 35///Time to make a rotation of 36 degrees
+#define CENTRAL_RIGHT 35
 
 //Speeds to control the left rotation
-#define LEFT_MOTOR_LEFT_ROTATION_SPEED -80
-#define RIGHT_MOTOR_LEFT_ROTATION_SPEED 80
+#define LEFT_MOTOR_LEFT_ROTATION_SPEED -130
+#define RIGHT_MOTOR_LEFT_ROTATION_SPEED 130
 
 //Speeds to control the right rotation
-#define LEFT_MOTOR_RIGHT_ROTATION_SPEED 80
-#define RIGHT_MOTOR_RIGHT_ROTATION_SPEED -80
+#define LEFT_MOTOR_RIGHT_ROTATION_SPEED 130
+#define RIGHT_MOTOR_RIGHT_ROTATION_SPEED -130
 
 /////////////////////////////////////////////////
 
@@ -72,14 +72,12 @@ uint8_t mpuIntStatus;                  // mpu statusbyte
 uint8_t devStatus;                     // device status    
 uint16_t packetSize;                   // estimated packet size  
 uint16_t fifoCount;                    // fifo buffer size   
-uint8_t fifoBuffer[128];                // fifo buffer 
+uint8_t fifoBuffer[64];                // fifo buffer 
 
 Quaternion q;                          // quaternion for mpu output
 float euler[3] = {0.0f,0.0f,0.0f};     // yaw pitch roll values
 float rota = 0.0f;
-float start = 0.0f;
-                                                                   //int i = 0;
-
+float start = 0.0f;                                                                  
 volatile bool mpuInterrupt = false;    //interrupt flag
 
 /////////////////////////////////////////////////
@@ -89,6 +87,7 @@ class Robot
 private:
 
 	Motor leftMotor;
+
 	Motor rightMotor;
 	Stepper stepper;
 	Button_debounced button;
@@ -106,6 +105,7 @@ public:
 		distanceSensor(DISTANCE_SENSOR_INIT),
 		stepper(STEPPER_STEPS, STEPPER_PIN1, STEPPER_PIN2, STEPPER_PIN3, STEPPER_PIN4),
 		button(BUTTON_PIN, DEBOUNCE_DELAY),
+
 		scanner(stepper, button, distanceSensor)
 	{
 		stateSelector = STARTING_POINT;
@@ -220,7 +220,7 @@ public:
 	int quick_choice()
 	{
  
-               checkturn(LEFT); //AGGIUNTA PER TEST
+               //checkturn(LEFT); //AGGIUNTA PER TEST
   
 		int x = scanner.quick_scan(SCANS_NUMBER);
 
@@ -324,12 +324,12 @@ void setup()
     Serial.println(F("Initializing DMP..."));
     devStatus = mpu.dmpInitialize();
 
-    mpu.setXGyroOffset(47);
-    mpu.setYGyroOffset(-38);
-    mpu.setZGyroOffset(22);
-    mpu.setXAccelOffset(-1156);
-    mpu.setYAccelOffset(2481);
-    mpu.setZAccelOffset(1391);
+    mpu.setXGyroOffset(52);
+    mpu.setYGyroOffset(-39);
+    mpu.setZGyroOffset(8);
+    mpu.setXAccelOffset(-843);
+    mpu.setYAccelOffset(2478);
+    mpu.setZAccelOffset(1445);
 
     if (devStatus == 0)
     {
@@ -406,24 +406,7 @@ int checkturn(int angolo)
       getangle();
       rota = euler [0];
     }
-                                                           /*  start = euler[0];
-                                                               for (i=0;i<2;i++)
-                                                               {
-                                                               getangle();
-                                                               rota = euler[0];
-                                                               if (abs(start - rota) < ((angolo) * M_PI/180))
-                                                                 {
-                                                                   i=0;
-                                                                   Serial.print("Errore evitato");
-                                                                 }
-                                                               while (abs(start - rota) < ((angolo) * M_PI/180))
-                                                                 {
-                                                                   getangle();
-                                                                   rota = euler [0];
-                                                                 }
-                                                               mpu.resetFIFO();
-                                                               } 
-                                                           */
+    
     Serial.print("RUOTATO\n");
     digitalWrite(8,LOW);
     reset();
