@@ -1,9 +1,7 @@
 #include <Wire.h>
 #include "Scanner_ultrasonic.h"
 #include "Motor.h"
-#include "I2Cdev.h"
-#include "helper_3dmath.h"
-#include "MPU6050_6Axis_MotionApps20.h"
+#include "Gyro.h"
 
 using namespace Derek;
 
@@ -65,228 +63,180 @@ using namespace Derek;
 
 /////////////////////////////////////////////////
 
-MPU6050 mpu;                           // mpu interface object
-
-bool dmpReady = false;                 // set true if DMP init was successful
-uint8_t mpuIntStatus;                  // mpu statusbyte
-uint8_t devStatus;                     // device status    
-uint16_t packetSize;                   // estimated packet size  
-uint16_t fifoCount;                    // fifo buffer size   
-uint8_t fifoBuffer[64];                // fifo buffer 
-
-Quaternion q;                          // quaternion for mpu output
-float euler[3] = {0.0f,0.0f,0.0f};     // yaw pitch roll values
-float rota = 0.0f;
-float start = 0.0f;                                                                  
-volatile bool mpuInterrupt = false;    //interrupt flag
-
-/////////////////////////////////////////////////
-
 class Robot
 {
-private:
+  private:
 
-	Motor leftMotor;
+    Gyro Gyroscope;
+    Motor leftMotor;
+    Motor rightMotor;
+    Stepper stepper;
+    Button_debounced button;
+    DistanceSensorDuo distanceSensor;
+    Scanner_ultrasonic scanner;
+    
+    int stateSelector;
+    unsigned int fullScanResults[SECTORS_FOR_FULL_SCAN];
+    unsigned int *pResults;
 
-	Motor rightMotor;
-	Stepper stepper;
-	Button_debounced button;
-	DistanceSensorDuo distanceSensor;
-	Scanner_ultrasonic scanner;
-	int stateSelector;
-	unsigned int fullScanResults[SECTORS_FOR_FULL_SCAN];
-	unsigned int *pResults;
+  public:
 
-public:
+    //Constructor
+    Robot()
+      : leftMotor(LEFT_MOTOR_INIT), rightMotor(RIGHT_MOTOR_INIT),        
+        distanceSensor(DISTANCE_SENSOR_INIT),
+        stepper(STEPPER_STEPS, STEPPER_PIN1, STEPPER_PIN2, STEPPER_PIN3, STEPPER_PIN4),
+        button(BUTTON_PIN, DEBOUNCE_DELAY),
+        Gyroscope(),
+        scanner(stepper, button, distanceSensor)
+    {
+      stateSelector = STARTING_POINT;
+      pResults = &fullScanResults[0];
+      for (int i = 0; i < SECTORS_FOR_FULL_SCAN; i++)
+      {
+        fullScanResults[i] = 0;
+      }
+    }
 
-	//Constructor
-	Robot()
-		:leftMotor(LEFT_MOTOR_INIT), rightMotor(RIGHT_MOTOR_INIT),
-		distanceSensor(DISTANCE_SENSOR_INIT),
-		stepper(STEPPER_STEPS, STEPPER_PIN1, STEPPER_PIN2, STEPPER_PIN3, STEPPER_PIN4),
-		button(BUTTON_PIN, DEBOUNCE_DELAY),
+    void setup()
+    {
+      Serial.begin(9600);
+      Wire.begin();
+      Gyroscope.Reset();
+    }
 
-		scanner(stepper, button, distanceSensor)
-	{
-		stateSelector = STARTING_POINT;
+    void run()
+    {
+      Gyroscope.Checkturn(35); //AGGIUNTA PER TEST
+      switch (stateSelector)
+      {
+        case STARTING_POINT:
+          start();
+          break;
 
-		pResults = &fullScanResults[0];
+        case FULL_SCANNING_TO_CHOICE:
+          full_choice();
+          break;
 
-		for (int i = 0; i<SECTORS_FOR_FULL_SCAN; i++)
-		{
-			fullScanResults[i] = 0;
-		}
-	}
+        case QUICK_SCANNING_TO_CHOICE:
+          quick_choice();
+          break;
 
-	int run()
-{
-  
-  if (stateSelector == STARTING_POINT)
-		{
-			start();
-			return 0;
-		}
+        default:
+          break;
+      }
+    }
 
-		if (stateSelector == FULL_SCANNING_TO_CHOICE)
-		{
-			full_choice();
-			return 0;
-		}
+    //STARTING POINT
+    void start()
+    {
+      scanner.start_up(BUTTON_DIRECTION_DISTANCE, START_UP_SPEED);
+      stop_bot();
+      stateSelector = QUICK_SCANNING_TO_CHOICE;
+    }
 
-		if (stateSelector == QUICK_SCANNING_TO_CHOICE)
-		{
-			quick_choice();
-			return 0;
-		}
+    //FULL CHOICE
+    void full_choice()
+    {
+      // Identifier to keep in memory the sector with the max value
+      int maxControl = 0;
+      unsigned int maxVal = 0;   
 
-		return 0;
-		
-}
+      scanner.full_scan(SECTORS_FOR_FULL_SCAN, ACQUISITIONS_PER_SECTOR, SCAN_LENGHT, FULL_SCAN_SPEED, pResults);
 
-	//STARTING POINT
-	int start()
-	{
-		scanner.start_up(BUTTON_DIRECTION_DISTANCE, START_UP_SPEED);
+      // Check if all sectors are occupied by obstacles
+      for (int i = 0; i < SECTORS_FOR_FULL_SCAN; i++)
+      {
+        if (fullScanResults[i] > maxVal)
+        {
+          maxVal = fullScanResults[i];
+          maxControl = i;
+        }
+      }
 
-		stop_bot();
+      // If the max value is lower than the value used to consider an obstacle as close, the robot rotate 90 degrees
+      if (maxVal < TOO_CLOSE)
+      {
+        rotate_right(A90_DEGREES);
+      }
 
-		stateSelector = QUICK_SCANNING_TO_CHOICE;
+      switch (maxControl)
+      {
+        case 0://Left
+          rotate_left(LEFT);
+          break;
 
-		return 0;
-	}
+        case 1://Central left
+          rotate_left(CENTRAL_LEFT);
+          break;
 
-	//FULL CHOICE
-	int full_choice()
-	{
-		// Identifier to keep in memory the sector with the max value
-		int maxControl = 0;
-		unsigned int maxVal = 0;
+        case 2://Center
+          go_straight(LEFT_LOW_MOTOR_SPEED, RIGHT_LOW_MOTOR_SPEED);
+          delay(CENTRAL_CECK_DELAY);
+          stop_bot();
+          break;
 
-		//scanner.start_up(BUTTON_DIRECTION_DISTANCE,START_UP_SPEED);
+        case 3://Central right
+          rotate_right(CENTRAL_RIGHT);
+          break;
 
-		scanner.full_scan(SECTORS_FOR_FULL_SCAN, ACQUISITIONS_PER_SECTOR, SCAN_LENGHT, FULL_SCAN_SPEED, pResults);
+        case 4://Right
+          rotate_right(RIGHT);
+          break;
 
-		//    scanner.start_up(BUTTON_DIRECTION_DISTANCE,START_UP_SPEED);
+        default:
+          break;
+      }
+      stateSelector = QUICK_SCANNING_TO_CHOICE;
+    }
 
-		// Check if all sectors are occupied by obstacles
-		for (int i = 0; i<SECTORS_FOR_FULL_SCAN; i++)
-		{
-			if (fullScanResults[i] > maxVal)
-			{
-				maxVal = fullScanResults[i];
-				maxControl = i;
-			}
-		}
+    void quick_choice()
+    {
+      int x = scanner.quick_scan(SCANS_NUMBER);
 
-		// If the max value is lower than the value used to consider an obstacle as close, the robot rotate 90 degrees
-		if (maxVal < TOO_CLOSE)
-		{
-			rotate_right(A90_DEGREES);
-			return 0;
-		}
+      if (x <= TOO_CLOSE)
+      {
+        stop_bot();
 
-		switch (maxControl)
-		{
-		case 0://Left
-			rotate_left(LEFT);
-			break;
+        stateSelector = FULL_SCANNING_TO_CHOICE;
 
-		case 1://Central left
-			rotate_left(CENTRAL_LEFT);
-			break;
+      }
+      else if (x <= CLOSE)
+      {
+        go_straight(LEFT_LOW_MOTOR_SPEED, RIGHT_LOW_MOTOR_SPEED);
 
-		case 2://Center
-			go_straight(LEFT_LOW_MOTOR_SPEED, RIGHT_LOW_MOTOR_SPEED);
-			delay(CENTRAL_CECK_DELAY);
-			stop_bot();
-			break;
+      }
+      
+      go_straight(LEFT_HIGH_MOTOR_SPEED, RIGHT_HIGH_MOTOR_SPEED);
+    }
 
-		case 3://Central right
-			rotate_right(CENTRAL_RIGHT);
-			break;
+    void go_straight(int leftMotorSpeed, int rightMotorSpeed)
+    {
+      leftMotor.setMotor(leftMotorSpeed);
+      rightMotor.setMotor(rightMotorSpeed);
+    }
 
-		case 4://Right
-			rotate_right(RIGHT);
-			break;
+    void stop_bot()
+    {
+      leftMotor.setMotor(0);
+      rightMotor.setMotor(0);
+    }
 
-		default:
-			break;
-		}
-		stateSelector = QUICK_SCANNING_TO_CHOICE;
+    void rotate_left(int angle)
+    {
+      leftMotor.setMotor(LEFT_MOTOR_LEFT_ROTATION_SPEED);
+      rightMotor.setMotor(RIGHT_MOTOR_LEFT_ROTATION_SPEED);
+      Gyroscope.Checkturn(angle);
+      stop_bot();
+    }
 
-		return 0;
-	}
-
-	int quick_choice()
-	{
- 
-               //checkturn(LEFT); //AGGIUNTA PER TEST
-  
-		int x = scanner.quick_scan(SCANS_NUMBER);
-
-		if (x <= TOO_CLOSE)
-		{
-			stop_bot();
-
-			stateSelector = FULL_SCANNING_TO_CHOICE;
-
-			return 0;
-		}
-		else if (x <= CLOSE)
-		{
-			go_straight(LEFT_LOW_MOTOR_SPEED, RIGHT_LOW_MOTOR_SPEED);
-
-			return 0;
-		}
-
-		go_straight(LEFT_HIGH_MOTOR_SPEED, RIGHT_HIGH_MOTOR_SPEED);
-
-		return 0;
-	}
-
-	int go_straight(int leftMotorSpeed, int rightMotorSpeed)
-	{
-		leftMotor.setMotor(leftMotorSpeed);
-		rightMotor.setMotor(rightMotorSpeed);
-
-		return 0;
-	}
-
-	int stop_bot()
-	{
-		leftMotor.setMotor(0);
-		rightMotor.setMotor(0);
-
-		return 0;
-	}
-
-	int rotate_left(int angle)
-	{
-		leftMotor.setMotor(LEFT_MOTOR_LEFT_ROTATION_SPEED);
-		rightMotor.setMotor(RIGHT_MOTOR_LEFT_ROTATION_SPEED);
-                
-                checkturn(angle);
-
-		//delay(angle);
-
-		stop_bot();
-
-		return 0;
-	}
-
-	int rotate_right(int angle)
-	{
-		leftMotor.setMotor(LEFT_MOTOR_RIGHT_ROTATION_SPEED);
-		rightMotor.setMotor(RIGHT_MOTOR_RIGHT_ROTATION_SPEED);
-
-                checkturn(angle);
-                
-		//delay(angle);
-
-		stop_bot();
-
-		return 0;
-	}
+    void rotate_right(int angle)
+    {
+      leftMotor.setMotor(LEFT_MOTOR_RIGHT_ROTATION_SPEED);
+      rightMotor.setMotor(RIGHT_MOTOR_RIGHT_ROTATION_SPEED);
+      Gyroscope.Checkturn(angle);
+      stop_bot();
+    }
 
 };
 
@@ -294,159 +244,10 @@ Robot mybot;
 
 void setup()
 {
-    // join I2C bus (I2Cdev library doesn't do this automatically)
-    #if I2CDEV_IMPLEMENTATION == I2CDEV_ARDUINO_WIRE
-        Wire.begin();
-    #elif I2CDEV_IMPLEMENTATION == I2CDEV_BUILTIN_FASTWIRE
-        Fastwire::setup(400, true);
-    #endif
-    
-    pinMode(10, OUTPUT);
-    pinMode(9, OUTPUT);
-    pinMode(8, OUTPUT);
-    digitalWrite(10,LOW);
-    digitalWrite(9,LOW);
-    digitalWrite(8,LOW);
-
-    Serial.begin(9600);
-    Serial.println(F("Initializing I2C devices..."));
-    mpu.initialize();
-    Serial.println(F("Testing device connections..."));
-    if (mpu.testConnection() == false)
-    {
-      while(1)
-    {
-    Serial.println(F("RIAVVIA ALIMENTAZIONE"));
-    digitalWrite(9,HIGH);
-    }
-    }
-    
-    Serial.println(F("Initializing DMP..."));
-    devStatus = mpu.dmpInitialize();
-
-    mpu.setXGyroOffset(52);
-    mpu.setYGyroOffset(-39);
-    mpu.setZGyroOffset(8);
-    mpu.setXAccelOffset(-843);
-    mpu.setYAccelOffset(2478);
-    mpu.setZAccelOffset(1445);
-
-    if (devStatus == 0)
-    {
-        Serial.println(F("Enabling DMP..."));
-        mpu.setDMPEnabled(true);
-
-        Serial.println(F("Enabling interrupt detection (Arduino external interrupt 2)..."));
-        attachInterrupt(2, dmpDataReady, RISING);
-        mpuIntStatus = mpu.getIntStatus();
-
-        Serial.println(F("DMP ready! Waiting for first interrupt..."));
-        dmpReady = true;
-        packetSize = mpu.dmpGetFIFOPacketSize();
-      
-    }
-    else
-    { 
-        Serial.print("DMP Initialization failed");
-    }
+  mybot.setup();
 }
 
 void loop()
 {
-   mybot.run();                     
-}
-
-//////////////////////////////////////
-
-void dmpDataReady() {
-    mpuInterrupt = true;
-}
-
-void getangle()
-{
-    while (!mpuInterrupt && fifoCount < packetSize)  {}
-  
-    mpuInterrupt = false;
-    mpuIntStatus = mpu.getIntStatus();
-    fifoCount = mpu.getFIFOCount();
-    
-    if((mpuIntStatus & 0x10) || fifoCount >= 1024)
-    { 
-      
-      mpu.resetFIFO(); 
-    
-    }
-    
-    else if(mpuIntStatus & 0x02)
-      {
-    
-        while (fifoCount < packetSize) fifoCount = mpu.getFIFOCount();
-  
-        mpu.getFIFOBytes(fifoBuffer, packetSize);
-      
-        fifoCount -= packetSize;
-    
-        mpu.dmpGetQuaternion(&q, fifoBuffer);
-        mpu.dmpGetEuler(euler, &q);
-        Serial.print("\nangolo\t");
-        Serial.print(euler[0] * 180/M_PI);
-    }
-}
-
-int checkturn(int angolo)
-{
-    digitalWrite(8,HIGH);
-    Serial.print("\nGuardo rotazione\n");
-    delay(500);
-    getangle();
-    start = euler[0];
-    rota = euler[0];
-    while (abs(start - rota) < ((angolo) * M_PI/180))
-    {
-      getangle();
-      rota = euler [0];
-    }
-    
-    Serial.print("RUOTATO\n");
-    digitalWrite(8,LOW);
-    reset();
-    return 0;
- }
- 
- void reset()
- {
-    Serial.println(F("\nRESETTING\n"));
-    delay(2000);
-    mpu.initialize();
-    if (mpu.testConnection() == false)
-    {
-      while(1)
-    {
-    digitalWrite(9,HIGH);
-    }
-    }
-    
-    devStatus = mpu.dmpInitialize();
-
-    // supply your own gyro offsets here, scaled for min sensitivity
-    mpu.setXGyroOffset(49);
-    mpu.setYGyroOffset(-40);
-    mpu.setZGyroOffset(19);
-    mpu.setZAccelOffset(1412);
-
-    // make sure it worked (returns 0 if so)
-    if (devStatus == 0)
-    {
-        mpu.setDMPEnabled(true);
-        attachInterrupt(2, dmpDataReady, RISING);
-        mpuIntStatus = mpu.getIntStatus();
-        dmpReady = true;
-        packetSize = mpu.dmpGetFIFOPacketSize();
-      
-    }
-    euler[0] = 0.0f;
-    start = 0.0f;
-    rota = 0.0f;
-    mpu.resetFIFO();
-    delay(2000);
+  mybot.run();
 }
