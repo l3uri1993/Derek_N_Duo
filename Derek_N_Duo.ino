@@ -8,7 +8,7 @@ Robot Derek_N_Duo;
 
 void setup()
 {
-  //Serial.begin(9600);
+  Serial.begin(9600);
   Wire.begin();
   Derek_N_Duo.setup();
 }
