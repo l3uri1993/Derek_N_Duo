@@ -11,6 +11,13 @@
 /// Default Constructor
 Gyro::Gyro()
 {
+  mpuIntStatus = 0;                  
+  packetSize = 0;                
+  fifoCount = 0;    
+  for (int j = 0; j < 64; j++)
+  {
+    fifoBuffer[j] = 0;
+  }
   for (int i = 0; i < 3; i++)
   {
     euler[i] = 0.00f;
@@ -18,14 +25,16 @@ Gyro::Gyro()
 }
 
 /// Default Destructor
-Gyro::~Gyro() {}
+Gyro::~Gyro()
+{
+}
 
 /////////////GYRO CLASS METHODS IMPLEMENTATION//////////////////
 
-void Gyro::Getangle()
+void Gyro::GetAngle()
 {
   while (fifoCount < packetSize)
-  {
+  {    
     fifoCount = mpu.getFIFOCount();
   }
 
@@ -42,6 +51,7 @@ void Gyro::Getangle()
     {
       fifoCount = mpu.getFIFOCount();
     }
+    
     mpu.getFIFOBytes(fifoBuffer, packetSize);
     fifoCount -= packetSize;
     mpu.dmpGetQuaternion(&q, fifoBuffer);
@@ -51,19 +61,10 @@ void Gyro::Getangle()
   }
 }
 
-void Gyro::Checkturn(int angle)
+float Gyro::CalculateAngle()
 {
-  Serial.print("\nIn rotazione...");
-  Getangle();
-  float start = euler[0];
-  float rota = start;
-  while (abs(start - rota) < ((angle) * M_PI / 180))
-  {
-    Getangle();
-    rota = euler[0];
-  }
-  Serial.print("RUOTATO\n");
-  Reset();
+  GetAngle();
+  return euler[0];
 }
 
 void  Gyro::Reset()
@@ -71,7 +72,7 @@ void  Gyro::Reset()
   mpu.initialize();
   if (mpu.testConnection() == false)
   {
-    Serial.println("\nRIAVVIA ALIMENTAZIONE\n\nSENSORE BLOCCATO PER MOTIVI I2CBUS\n");
+    Serial.println("\nRIAVVIA ALIMENTAZIONE\n\nSENSORE BLOCCATO PER MOTIVI IGNOTI\n");
     while (1);
   }
 
@@ -103,6 +104,6 @@ void  Gyro::Reset()
     Serial.print(F("DMP Initialization failed (code "));
     Serial.print(devStatus);
     Serial.println(F(")"));
-    while(1);
+    while (1);
   }
 }
