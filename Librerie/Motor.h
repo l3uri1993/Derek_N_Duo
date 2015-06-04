@@ -1,7 +1,8 @@
 /**
- * @file arduino_motor_driver.h
- * @brief motor driver for the Arduino Motor Shield.
- */
+  @file Motor.h
+  @brief Header file for class Motor
+*/
+
 
 #ifndef _ARDUINO_MOTOR_DRIVER_DEF
 #define _ARDUINO_MOTOR_DRIVER_DEF

@@ -1,5 +1,6 @@
 /**
-* @file arduino_motor_driver.cpp
+  @file Motor.cpp
+  @brief Implementation file for class Gyro
 */
 
 #include "Motor.h"

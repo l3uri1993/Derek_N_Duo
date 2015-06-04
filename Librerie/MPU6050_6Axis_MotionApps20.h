@@ -300,7 +300,7 @@ const unsigned char dmpConfig[MPU6050_DMP_CONFIG_SIZE] PROGMEM = {
     //0x07,   0x46,   0x01,   0x9A,                     // CFG_GYRO_SOURCE inv_send_gyro
     //0x07,   0x47,   0x04,   0xF1, 0x28, 0x30, 0x38,   // CFG_9 inv_send_gyro -> inv_construct3_fifo
     //0x07,   0x6C,   0x04,   0xF1, 0x28, 0x30, 0x38,   // CFG_12 inv_send_accel -> inv_construct3_fifo
-    0x02,   0x16,   0x02,   0x00, 0x01                // D_0_22 inv_set_fifo_rate // Original 0x01
+    0x02,   0x16,   0x02,   0x00, 0x00                // D_0_22 inv_set_fifo_rate // Original 0x01
 
     // DMP output frequency is calculated easily using this equation: (200Hz / (1 + value))
 

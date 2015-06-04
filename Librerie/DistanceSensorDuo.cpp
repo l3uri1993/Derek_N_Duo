@@ -1,7 +1,5 @@
-
 /**
 	@file DistanceSensorDuo.cpp
-
 	@brief Implementation file for class DistanceSensorDuo
 */
 

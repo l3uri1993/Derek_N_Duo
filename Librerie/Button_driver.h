@@ -1,7 +1,5 @@
-
 /**
 	@file Button_driver.h
-
 	@brief Header file for class Button_driver
 */
 
