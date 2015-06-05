@@ -7,6 +7,8 @@
 
 #include "Gyro.h"
 
+//#define DEBUG_MPU //Stampa in seriale tutte le rilevazioni compiute dal sensore o eventuali anomalie
+
 ////////////CONSTRUCTOR AND DESTRUCTOR//////////////////////////
 /// Default Constructor
 Gyro::Gyro()
@@ -57,8 +59,10 @@ void Gyro::GetAngle()
     fifoCount -= packetSize;
     mpu.dmpGetQuaternion(&q, fifoBuffer);
     mpu.dmpGetEuler(euler, &q);
-   // Serial.print("\nangolo\t");
-    //Serial.print(euler[0] * 180 / M_PI);
+#ifdef DEBUG_MPU
+    Serial.print("\nangolo\t");
+    Serial.print(euler[0] * 180 / M_PI);
+#endif
   }
 }
 
@@ -74,7 +78,9 @@ void  Gyro::Reset()
   if (mpu.testConnection() == false)
   {
     digitalWrite(15, HIGH);
-    //Serial.println("\nRIAVVIA ALIMENTAZIONE\n\nSENSORE BLOCCATO PER MOTIVI IGNOTI\n");
+#ifdef DEBUG_MPU
+    Serial.println("\nRIAVVIA ALIMENTAZIONE\n\nSENSORE BLOCCATO PER MOTIVI IGNOTI\n");
+#endif
     while (1);
   }
 
@@ -106,9 +112,11 @@ void  Gyro::Reset()
     // ERROR!
     // 1 = initial memory load failed
     // 2 = DMP configuration updates failed
-    //Serial.print(F("DMP Initialization failed (code "));
-    //Serial.print(devStatus);
-    //Serial.println(F(")"));
+#ifdef DEBUG_MPU
+    Serial.print(F("DMP Initialization failed (code "));
+    Serial.print(devStatus);
+    Serial.println(F(")"));
+#endif
     while (1);
   }
 }

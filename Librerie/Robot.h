@@ -124,11 +124,6 @@ class Robot
     
     float PidStraightInput, PidStraightOutput, PidStraightSetpoint;
     float PidTurnInput, PidTurnOutput, PidTurnSetpoint;
-    
-    int LeftMotorStraightPowerHigh;
-    int RightMotorStraightPowerHigh;
-    int LeftMotorStraightPowerLow;
-    int RightMotorStraightPowerLow;
 
     /// Constant for euler conversion calculated on creation of the object
     const float converter = M_PI / 180;
@@ -144,7 +139,7 @@ class Robot
 
     void Stop_Bot();
 
-    void Go_Straight(int *leftMotorSpeed, int *rightMotorSpeed);
+    void Go_Straight(int MotorSpeed);
 
     void Rotate_Left(int angle);
 

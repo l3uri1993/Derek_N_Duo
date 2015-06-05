@@ -7,6 +7,12 @@
 
 #include "Robot.h"
 
+//#define PID_ENABLED                 //Abilita il controllo PID quando va dritto
+//#define DEBUG_PID_LOOP              //Abilita funzione in loop continuo per testare in maniera continua la funzione PID
+//#define DEBUG_PID                   //Abilita la stampa a schermo degli Input,Output e modifiche ai motori del PID
+
+//#define DEBUG_MPU_LOOP              //Abilita funzione in loop continuo per testare in maniera continua le rotazione del robot
+
 ////////////CONSTRUCTOR AND DESTRUCTOR//////////////////////////
 
 /// Default Constructor
@@ -26,11 +32,7 @@ Robot::Robot() : LeftMotor(LEFT_MOTOR_INIT), RightMotor(RIGHT_MOTOR_INIT),
   {
     fullScanResults[i] = 0;
   }
-  ///MOTOR POWER INITIALIZATION/////////////////////////////////
-  RightMotorStraightPowerHigh = HIGH_MOTOR_SPEED;
-  LeftMotorStraightPowerHigh = RightMotorStraightPowerHigh;
-  RightMotorStraightPowerLow = LOW_MOTOR_SPEED;
-  LeftMotorStraightPowerLow = RightMotorStraightPowerLow;
+  
   ///PID CONTROL SETPOINT INITIALIZATION////////////////////////
   PidStraightSetpoint = 0;
   PidTurnSetpoint = 0;
@@ -53,8 +55,12 @@ void Robot::run()
   switch (stateSelector)
   {
     case QUICK_SCANNING_TO_CHOICE:
-      Turn(90, 0, 0);                                                           ///Funzioni per provare rotazione e PIDStraight
-      //Go_Straight(&LeftMotorStraightPowerHigh, &RightMotorStraightPowerHigh);
+#ifdef DEBUG_MPU_LOOP
+      Turn(90, 0, 0);
+#endif
+#ifdef DEBUG_PID_LOOP
+      Go_Straight(HIGH_MOTOR_SPEED);
+#endif
       Quick_Choice();
       break;
 
@@ -115,7 +121,7 @@ void Robot::Full_Choice()
       break;
 
     case 2://Center
-      Go_Straight(&LeftMotorStraightPowerLow, &RightMotorStraightPowerLow);
+      Go_Straight(LOW_MOTOR_SPEED);
       delay(CENTRAL_CECK_DELAY);
       Stop_Bot();
       break;
@@ -146,31 +152,27 @@ void Robot::Quick_Choice()
   }
   else if (x <= CLOSE)
   {
-    RightMotorStraightPowerHigh = HIGH_MOTOR_SPEED;
-    LeftMotorStraightPowerHigh = HIGH_MOTOR_SPEED;
-    Go_Straight(&LeftMotorStraightPowerLow, &RightMotorStraightPowerLow);
+    Go_Straight(LOW_MOTOR_SPEED);
   }
   else
   {
-    RightMotorStraightPowerLow = LOW_MOTOR_SPEED;
-    LeftMotorStraightPowerLow = LOW_MOTOR_SPEED;
-    Go_Straight(&LeftMotorStraightPowerHigh, &RightMotorStraightPowerHigh);
+    Go_Straight(HIGH_MOTOR_SPEED);
   }
 }
 
-void Robot::Go_Straight(int *LeftMotorSpeed, int *RightMotorSpeed)
+void Robot::Go_Straight(int MotorSpeed)
 {
-  /*
+#ifdef PID_ENABLED
   PidEvaluate(&GoStraightPid, &PidStraightInput, &PidStraightOutput);
-  *LeftMotorSpeed = *LeftMotorSpeed + PidStraightOutput;
-  *RightMotorSpeed = *RightMotorSpeed - PidStraightOutput;
-  Serial.print("\n\t");
-  Serial.print(*LeftMotorSpeed);
-  Serial.print("\n\t");
-  Serial.print(*RightMotorSpeed);
-  */
-  LeftMotor.setMotor(*LeftMotorSpeed);
-  RightMotor.setMotor(*RightMotorSpeed);
+#endif
+  LeftMotor.setMotor(MotorSpeed + PidStraightOutput);
+  RightMotor.setMotor(MotorSpeed - PidStraightOutput);
+#ifdef DEBUG_PID
+  Serial.print("\nleft\t");
+  Serial.print(MotorSpeed + PidStraightOutput);
+  Serial.print("\nright\t");
+  Serial.print(MotorSpeed - PidStraightOutput);
+#endif
 
 }
 
@@ -230,12 +232,13 @@ void Robot::PidEvaluate(PID * myPid, float * input, float * output)
   {
     *input = Gyroscope.CalculateAngle();
   }
-  Serial.print("\nPID INPUT\t");
   *input = *input / converter;
-  Serial.print(*input);
   myPid->Compute();
   *output = (int) * output;
+#ifdef DEBUG_PID
+  Serial.print("\nPID INPUT\t");
+  Serial.print(*input);
   Serial.print("\nPID OUTPUT\t");
   Serial.print(*output);
+#endif
 }
-
