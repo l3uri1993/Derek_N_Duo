@@ -7,9 +7,10 @@
 
 #include "Robot.h"
 
-//#define PID_ENABLED                 //Abilita il controllo PID quando va dritto
-//#define DEBUG_PID_LOOP              //Abilita funzione in loop continuo per testare in maniera continua la funzione PID
-//#define DEBUG_PID                   //Abilita la stampa a schermo degli Input,Output e modifiche ai motori del PID
+#define ENABLE_SERIAL               //Abilita il debug
+#define PID_ENABLED                 //Abilita il controllo PID quando va dritto
+#define DEBUG_PID_LOOP              //Abilita funzione in loop continuo per testare in maniera continua la funzione PID
+#define DEBUG_PID                   //Abilita la stampa a schermo degli Input,Output e modifiche ai motori del PID
 
 //#define DEBUG_MPU_LOOP              //Abilita funzione in loop continuo per testare in maniera continua le rotazione del robot
 
@@ -32,10 +33,11 @@ Robot::Robot() : LeftMotor(LEFT_MOTOR_INIT), RightMotor(RIGHT_MOTOR_INIT),
   {
     fullScanResults[i] = 0;
   }
-  
   ///PID CONTROL SETPOINT INITIALIZATION////////////////////////
-  PidStraightSetpoint = 0;
-  PidTurnSetpoint = 0;
+  PidStraightSetpoint = 0.78;
+  PidTurnSetpoint = 0.78;
+  PidStraightOutput = 0;
+  PidTurnOutput = 0;
 }
 
 /// Default Destructor
@@ -47,6 +49,9 @@ Robot::~Robot()
 
 void Robot::setup()
 {
+#ifdef ENABLE_SERIAL
+  Serial.begin(9600);
+#endif
   Gyroscope.Reset();
 }
 

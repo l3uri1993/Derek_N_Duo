@@ -40,7 +40,7 @@ class Gyro
     /// @name CONSTRUCTORS/DESTRUCTOR
     /// @{
 
-    /// Default constructor
+    /// Default constructor/destructor
     Gyro();
     virtual ~Gyro();
 
