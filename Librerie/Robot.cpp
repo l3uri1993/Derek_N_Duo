@@ -53,6 +53,7 @@ void Robot::setup()
 #ifdef ENABLE_SERIAL
   Serial.begin(9600);
 #endif
+
   Gyroscope.Reset();
 }
 
@@ -62,10 +63,10 @@ void Robot::run()
   {
     case QUICK_SCANNING_TO_CHOICE:
 
-/*#ifdef DEBUG_PID_LOOP
+#ifdef DEBUG_PID_LOOP
       Go_Straight(HIGH_MOTOR_SPEED);
 #endif
-*/
+
       Quick_Choice();
       break;
 
@@ -88,6 +89,7 @@ void Robot::Start()
   Scanner.start_up(BUTTON_DIRECTION_DISTANCE, START_UP_SPEED);
   Stop_Bot();
   stateSelector = QUICK_SCANNING_TO_CHOICE;
+  Go_Straight(LOW_SIDE_SPEED);
 }
 
 ///FULL CHOICE
@@ -110,9 +112,10 @@ void Robot::Full_Choice()
   }
 
   // If the max value is lower than the value used to consider an obstacle as close, the robot rotate 90 degrees
-  if (maxVal < TOO_CLOSE)
+  if (maxVal <= TOO_CLOSE)
   {
-    Rotate_Right(A90_DEGREES);
+    Rotate_Right(A120_DEGREES);
+    maxControl = 2;               //Ruoto di 120 gradi e vado dritto piano
   }
 
   switch (maxControl)
@@ -128,7 +131,7 @@ void Robot::Full_Choice()
     case 2://Center
       Go_Straight(LOW_SIDE_SPEED);
       delay(CENTRAL_CECK_DELAY);
-      Stop_Bot();
+      //Stop_Bot();               //Ferma il motore nel caso deve andare dritto...si puo tralasciare
       break;
 
     case 3://Central right
@@ -178,7 +181,6 @@ void Robot::Go_Straight(int MotorSpeed)
   Serial.print("\nright\t");
   Serial.print(MotorSpeed - PidStraightOutput);
 #endif
-
 }
 
 void Robot::Stop_Bot()

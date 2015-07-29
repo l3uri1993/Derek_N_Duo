@@ -58,11 +58,11 @@ using namespace Derek;
 #define CLOSE 80
 
 ///Motors Speeds for the quick scan
-#define HIGH_SIDE_SPEED 230
-#define LOW_SIDE_SPEED 150
+#define HIGH_SIDE_SPEED 200
+#define LOW_SIDE_SPEED 130
 
 ///Angles to rotate
-#define A90_DEGREES 90 
+#define A120_DEGREES 120
 #define LEFT 60
 #define RIGHT 60
 #define CENTRAL_LEFT 30
