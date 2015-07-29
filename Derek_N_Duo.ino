@@ -1,6 +1,6 @@
 /**Istruzioni per il debug
  * 
- * Ci sono vari DEFINE per abilitare/disabilitare il debug
+ * Ci sono vari DEFINE per abilitare/disabilitare il debug con seriale
  * In Gyro.cpp
  * In Robot.cpp
  * 
@@ -17,12 +17,7 @@ Robot Derek_2;
 
 void setup()
 {
-  pinMode(14, OUTPUT);    ///Led per verificare funzionamento
-  pinMode(15, OUTPUT);
-  digitalWrite(15, LOW);
-  digitalWrite(14, HIGH);
-  /////////////////////////////////////////////////////
-  Wire.begin();           ///Parte sempre necessaria
+  Wire.begin();
   Derek_2.setup();
 }
 

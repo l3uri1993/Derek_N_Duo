@@ -37,7 +37,6 @@ void Gyro::GetAngle()
 {
   while (fifoCount < packetSize)
   {
-    //Serial.print("\ncarico pacchetto...");
     fifoCount = mpu.getFIFOCount();
   }
 
@@ -77,7 +76,6 @@ void  Gyro::Reset()
   mpu.initialize();
   if (mpu.testConnection() == false)
   {
-    digitalWrite(15, HIGH);
 #ifdef DEBUG_MPU
     Serial.println("\nRIAVVIA ALIMENTAZIONE\n\nSENSORE BLOCCATO PER MOTIVI IGNOTI\n");
 #endif
@@ -108,7 +106,6 @@ void  Gyro::Reset()
   }
   else
   {
-    digitalWrite(15, HIGH);
     // ERROR!
     // 1 = initial memory load failed
     // 2 = DMP configuration updates failed

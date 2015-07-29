@@ -9,9 +9,9 @@
 #define Robot__DEF
 
 #include "Scanner_ultrasonic.h"
-#include "Motor.h"
 #include "Gyro.h"
 #include "PID_v1.h"
+#include "Side.h"
 
 using namespace Derek;
 
@@ -21,10 +21,12 @@ using namespace Derek;
 */
 
 ///Value for the constructor
-#define LEFT_MOTOR_INIT 2
-#define RIGHT_MOTOR_INIT 1
+#define LEFT_REARMOTOR_INIT 1
+#define RIGHT_REARMOTOR_INIT 2
+#define RIGHT_FRONTMOTOR_INIT 3
+#define LEFT_FRONTMOTOR_INIT 4
 #define DISTANCE_SENSOR_INIT 23,22,500
-#define STEPPER_STEPS 200
+#define STEPPER_STEPS 190
 #define STEPPER_PIN1 24
 #define STEPPER_PIN2 28
 #define STEPPER_PIN3 26
@@ -56,23 +58,23 @@ using namespace Derek;
 #define CLOSE 80
 
 ///Motors Speeds for the quick scan
-#define HIGH_MOTOR_SPEED 200
-#define LOW_MOTOR_SPEED 140
+#define HIGH_SIDE_SPEED 230
+#define LOW_SIDE_SPEED 150
 
 ///Angles to rotate
-#define A90_DEGREES 85 
-#define LEFT 65
-#define RIGHT 65
+#define A90_DEGREES 90 
+#define LEFT 60
+#define RIGHT 60
 #define CENTRAL_LEFT 30
 #define CENTRAL_RIGHT 30
 
-///Speeds to control the left rotation
-#define LEFT_MOTOR_LEFT_ROTATION_SPEED -70
-#define RIGHT_MOTOR_LEFT_ROTATION_SPEED 70
+//Speeds to control the left rotation
+#define LEFT_SIDE_LEFT_ROTATION_SPEED -200
+#define RIGHT_SIDE_LEFT_ROTATION_SPEED 200
 
-///Speeds to control the right rotation
-#define LEFT_MOTOR_RIGHT_ROTATION_SPEED 70
-#define RIGHT_MOTOR_RIGHT_ROTATION_SPEED -70
+//Speeds to control the right rotation
+#define LEFT_SIDE_RIGHT_ROTATION_SPEED 200
+#define RIGHT_SIDE_RIGHT_ROTATION_SPEED -200
 
 //PID
 #define STRAIGHT_KP 1
@@ -110,8 +112,8 @@ class Robot
   private:
 
     Gyro Gyroscope;
-    Motor LeftMotor;
-    Motor RightMotor;
+    Side leftside;
+    Side rightside;
     Stepper StepperMotor;
     Button_debounced Button;
     DistanceSensorDuo DistanceSensor;
