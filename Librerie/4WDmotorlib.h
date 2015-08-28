@@ -1,6 +1,5 @@
-
-#ifndef _nuovalib_h_
-#define _nuovalib_h_
+#ifndef _4WDmotorlib_h_
+#define _4WDmotorlib_h_
 
 #include <inttypes.h>
 #include "wiring_analog.h"
